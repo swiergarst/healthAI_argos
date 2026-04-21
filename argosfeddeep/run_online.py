@@ -14,8 +14,11 @@ from tensorflow.keras import losses
 import argosfeddeep.utils as utl
 import argosfeddeep.data_augmentation as aug
 import argosfeddeep.models as mod
+from typing import Any
 
-data_path = '/mnt/data'
+data_path = "/home/swier/Documents/healthAI_argos/argos_layout/argos_layout/"
+# data_path = '/mnt/data'
+
 #with open (os.path.join(param_dir, params_file),'w') as fp:
   #  json.dump(params,fp)
 
@@ -228,30 +231,29 @@ def early_stopping(loss_list, min_delta=0.005, patience=20):
 
 
 @run_once
-def _start_graph_tensorflow():
+def _start_graph_tensorflow(log_dir:str):
     """
     Starts the tensorboard graph. Allows for the tracking of loss curves, accuracy and architecture visualization.
+    log_dir : str
+    Path to directory where updates should be stored.
     """
-    tf.summary.trace_on(graph=True, profiler=True)
+    tf.summary.trace_on(graph=True, profiler=True, profiler_outdir=log_dir)
 
 
 @run_once
-def _end_graph_tensorflow(self, log_dir):
+def _end_graph_tensorflow(self):
     """
 
     Parameters
     ----------
     self : tf.writer
         train_summary_writer.
-    log_dir : str
-        Path to directory where updates should be stored.
-
     Returns
     -------
 
     """
     with self.as_default():
-        tf.summary.trace_export(name="graph", step=0, profiler_outdir=log_dir)
+        tf.summary.trace_export(name="graph", step=0)
 
 
 def get_batch_full(ct_slices, params):
@@ -260,10 +262,10 @@ def get_batch_full(ct_slices, params):
     # pet_path = os.path.join(patient_path, 'PT')
 
 
-    ct = np.zeros(shape=[params.dict['batch_size'], 512, 512, params.dict['patch_shape'][2]])
-    gt = np.zeros(shape=[params.dict['batch_size'], 512, 512, 1])
+    ct = np.zeros(shape=[params['batch_size'], 512, 512, params['patch_shape'][2]])
+    gt = np.zeros(shape=[params['batch_size'], 512, 512, 1])
 
-    for layer in range(0, params.dict['batch_size']):
+    for layer in range(0, params['batch_size']):
         while True:
             random_case = random.choice(list(ct_slices))
             if len(ct_slices[random_case]) != 0:
@@ -277,44 +279,44 @@ def get_batch_full(ct_slices, params):
         # print(str(random_case) + ' Length: ' + str(len(ct_slices[random_case])))
         if rand_num == 0:
             while True:
-                random_layer = random.randint(0, len(ct_slices[random_case]) - 1 - (params.dict['patch_shape'][2] // 2))
+                random_layer = random.randint(0, len(ct_slices[random_case]) - 1 - (params['patch_shape'][2] // 2))
                 selected_slice = ct_slices[random_case][random_layer]
                 output = selected_slice.split(',')
                 if int(output[-1]) == 1:
 
                     break
         else:
-            random_layer = random.randint(0, len(ct_slices[random_case]) - 1 - (params.dict['patch_shape'][2] // 2))
+            random_layer = random.randint(0, len(ct_slices[random_case]) - 1 - (params['patch_shape'][2] // 2))
             selected_slice = ct_slices[random_case][random_layer]
             output = selected_slice.split(',')
 
-        min_layer = random_layer - params.dict['patch_shape'][2] // 2
+        min_layer = random_layer - params['patch_shape'][2] // 2
 
         gt_patch = nib.load(output[1]).get_fdata()
 
-        ct_patch = np.zeros([params.dict['patch_shape'][0],
-                             params.dict['patch_shape'][1],
-                             params.dict['patch_shape'][2]])
+        ct_patch = np.zeros([params['patch_shape'][0],
+                             params['patch_shape'][1],
+                             params['patch_shape'][2]])
 
-        for z in range(0, params.dict['patch_shape'][-1]):
+        for z in range(0, params['patch_shape'][-1]):
             selected_slice = ct_slices[random_case][min_layer + z]
             output = selected_slice.split(',')
-            ct_patch[:, :, z] = nib.load(output[0]).get_fdata()
+            ct_patch[:, :, z] = nib.load(output[0]).get_fdata().reshape(512,512)
 
 
         if random.randint(0, 1) == 1:
-            num_augments = np.random.randint(1, params.dict['number_of_augmentations'] + 1)
+            num_augments = np.random.randint(1, params['number_of_augmentations'] + 1)
             ct_patch, gt_patch = aug.apply_augmentations(ct_patch,
                                                                        gt_patch,
                                                                        num_augments)
 
         ct[layer, :, :, :] = ct_patch
-        gt[layer, :, :, 0] = gt_patch
-    gt = tf.one_hot(np.uint8(np.squeeze(gt, axis=-1)), params.dict['num_classes'])
+        gt[layer, :, :, 0] = gt_patch.reshape(512, 512)
+    gt = tf.one_hot(np.uint8(np.squeeze(gt, axis=-1)), params['num_classes'])
     return ct, gt
 
 
-def main(averaged_model_path):
+def main(model_weights: Any, params: dict):
     @tf.function
     def train_on_batch(im_src, gt_src):
         """
@@ -366,12 +368,13 @@ def main(averaged_model_path):
         validation_loss(total_loss)
         return predictions
 
-    param_path = os.path.join(data_path , 'assets','params.json')
-    params = utl.Params(param_path)
+    
+    # param_path = os.path.join(data_path , 'assets','params.json')
+    # params = utl.Params(param_path)
 
-    sort_slices(os.path.join(data_path,'Train/'),'slices_training_800200.json')
+    sort_slices(os.path.join(data_path,'Train/'),'slices_training_modified.json')
 
-    sort_slices(os.path.join(data_path,'Validation/'),'slices_validation_800200.json')
+    sort_slices(os.path.join(data_path,'Validation/'),'slices_validation_modified.json')
     # Define loss function
     loss_list = []
     # loss_function = losses.CategoricalCrossentropy()
@@ -379,24 +382,25 @@ def main(averaged_model_path):
     loss_function = dice_bce
 
     # Define optimizer with learning rate
-    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(params.dict['learning_rate'],
-                                                                  decay_steps=params.dict['decay_steps'],
-                                                                  decay_rate=params.dict['decay_rate'],
+    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(params['learning_rate'],
+                                                                  decay_steps=params['decay_steps'],
+                                                                  decay_rate=params['decay_rate'],
                                                                   staircase=True)
     optimizer_function = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
     # optimizer_function = tf.keras.optimizers.Adam(params.dict['learning_rate'])
 
     # Define model
-    model = mod.mod_resnet(params.dict,
-                        params.dict['num_classes'],
+    model = mod.mod_resnet(params,
+                        params['num_classes'],
                         optimizer=optimizer_function,
                         loss=loss_function)
 
-    if averaged_model_path is not None:
-        print('Loading previous weight from: args.model_weights')
-        model.load_weights(averaged_model_path)
-        weights = model.get_weights()
-        model.set_weights(weights)
+    # if averaged_model_path is not None:
+    # model.load_weights(averaged_model_path)
+    # weights = model.get_weights()
+    if model_weights is not None:
+        print('Loading previous weight from: central weights')
+        model.set_weights(model_weights)
 
     # print(model.summary)
     # Define evaluation metrics
@@ -426,8 +430,9 @@ def main(averaged_model_path):
 
 
     # Load training and validation data
-    train_slices = utl.read_slices(os.path.join(data_path,'assets','slices_training_800200.json'))
-    validation_slices = utl.read_slices(os.path.join(data_path,'assets','slices_validation_800200.json'))
+    train_slices = utl.read_slices(os.path.join(data_path,'assets','slices_training_modified.json'))
+    validation_slices = utl.read_slices(os.path.join(data_path,'assets','slices_validation_modified.json'))
+    
 
     iteration_number = list()
     train_loss_list = list()
@@ -437,17 +442,23 @@ def main(averaged_model_path):
 
 
     # Start training loop
-    for iteration_deep in range(0, params.dict['num_steps'] + 1):
+    for iteration_deep in range(0, params['num_steps'] + 1):
         # print(iteration_deep)
-        _start_graph_tensorflow()
+        _start_graph_tensorflow(train_log_dir)
+        # dset_train = dset_train.shuffle()
+        # batch = dset_train.shuffle(100).take(params['batch_size'])
+        # ct_batch = np.array([sample[0] for sample in batch])
+        # gt_batch = np.array([sample[1] for sample in batch])
+        # print(f'ct_batch: {ct_batch}')
+        # print(f'gt_batch: {gt_batch}') 
         ct_batch, gt_batch = get_batch_full(train_slices, params)
 
         train_pred = train_on_batch(ct_batch, gt_batch)
 
-        _end_graph_tensorflow(train_summary_writer, train_log_dir)
+        _end_graph_tensorflow(train_summary_writer)
 
         # Evaluation step during training.
-        if iteration_deep % params.dict['train_eval_step'] == 0:
+        if iteration_deep % params['train_eval_step'] == 0:
             # Write training information to training log
             with train_summary_writer.as_default():
                 # train_dice = train_accuracy(gt_batch, train_pred).numpy()
@@ -463,7 +474,8 @@ def main(averaged_model_path):
                                   train_dice))
 
         # Evaluation step for validation.
-        if iteration_deep % params.dict['val_eval_step'] == 0:
+        if iteration_deep % params['val_eval_step'] == 0:
+            # ct_batch_val, gt_batch_val = dset_val
             ct_batch_val, gt_batch_val = get_batch_full(validation_slices, params)
             val_pred = validate_on_batch(ct_batch_val, gt_batch_val)
 
@@ -498,14 +510,14 @@ def main(averaged_model_path):
             #     break
 
         # Save the model at predefined step numbers.
-        if iteration_deep % params.dict['save_model_step'] == 0:
-            model.save(os.path.join(saved_model_path,
-                                    'model_' + str(iteration_deep)))
-            model.save_weights(os.path.join(saved_weights_path,
-                                            'model_weights' + str(iteration_deep) + '.h5'))
+        if iteration_deep % params['save_model_step'] == 0:
+            model.save(f'{saved_model_path}model_{iteration_deep}.keras')
+            model.save_weights(f'{saved_weights_path}model_weights_{iteration_deep}.weights.h5')
+            # model.save_weights(os.path.join(saved_weights_path,
+            #                                 'model_weights' + str(iteration_deep) + '.h5'))
 
             trained_model_path = os.path.join(saved_weights_path,'model_weights' + str(iteration_deep) + '.h5')
-
+    
     model_metrics = {'node_iteration': iteration_number,
                      'training_loss': train_loss_list,
                      'training_dice':train_dice_list,

@@ -1,0 +1,16 @@
+{
+    "learning_rate" : 0.1,
+    "decay_steps" : 100,
+    "decay_rate" : 0.1,
+    "num_classes" : 3,
+    "num_steps" : 10,
+    "train_eval_step" : 1,
+    "val_eval_step" : 5,
+    "save_model_step" : 10,
+    "seed" : 42,
+    "batch_size" : 2,
+
+    "l2_loss" : 0.1,
+    "patch_shape" : [512, 512, 3],
+    "number_of_augmentations" : 1
+}

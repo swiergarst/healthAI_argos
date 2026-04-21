@@ -1,17 +1,19 @@
 import tensorflow as tf
+from tensorflow import keras
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Conv2D, Input, MaxPooling2D, Dropout, \
-    concatenate, BatchNormalization, Conv2DTranspose, PReLU, ReLU
+concatenate, BatchNormalization, Conv2DTranspose, PReLU, ReLU, Layer, Add, Resizing
+# from tensorflow.keras.layers     
 
 
 def conv_block(inputs, num_features, kernel_size, params):
     x = Conv2D(num_features, kernel_size, activation=None, kernel_initializer='he_normal',
-               padding='same', kernel_regularizer=tf.keras.regularizers.l2(l=params.l2_loss))(inputs)
+               padding='same', kernel_regularizer=tf.keras.regularizers.l2(l2=params.l2_loss))(inputs)
     x = PReLU(shared_axes=[1, 2])(x)
     x = BatchNormalization()(x)
     x = Dropout(params.dropout_rate)(x)
     x = Conv2D(num_features, kernel_size, activation=None, kernel_initializer='he_normal',
-               padding='same', kernel_regularizer=tf.keras.regularizers.l2(l=params.l2_loss))(x)
+               padding='same', kernel_regularizer=tf.keras.regularizers.l2(l2=params.l2_loss))(x)
     x = PReLU(shared_axes=[1, 2])(x)
     x = BatchNormalization()(x)
     return x
@@ -122,28 +124,33 @@ def attention_unet(params, num_classes, optimizer, loss):
 
 
 def mod_resnet(params, num_classes, optimizer, loss):
-    
+    keras.utils.set_random_seed(params['seed'])
+
     def _identity_block(x, num_features, stride=(1, 1), kernel_size=[3, 3]):
         y = Conv2D(num_features, kernel_size, strides=stride, activation=None, kernel_initializer='he_normal',
-               padding='same', kernel_regularizer=tf.keras.regularizers.l2(l=params['l2_loss']))(x)
+               padding='same', kernel_regularizer=tf.keras.regularizers.l2(l2=params['l2_loss']))(x)
         y = BatchNormalization()(y)
         y = Conv2D(num_features, kernel_size, strides=stride, activation=None, kernel_initializer='he_normal',
-               padding='same', kernel_regularizer=tf.keras.regularizers.l2(l=params['l2_loss']))(y)
+               padding='same', kernel_regularizer=tf.keras.regularizers.l2(l2=params['l2_loss']))(y)
         y = BatchNormalization()(y)
-        y = tf.math.add(x, y)
+        # y = _residual_connection(x, y)
+        y = Add()([x, y])
+        # y = tf.math.add(x, y)
         y = ReLU()(y)
         return y
     
     
     def _convolutional_res_block(x, num_features, stride=(2, 2), kernel_size=[3, 3]):
         y_1 = Conv2D(num_features, kernel_size,strides=stride, activation=None, kernel_initializer='he_normal',
-               padding='same', kernel_regularizer=tf.keras.regularizers.l2(l=params['l2_loss']))(x)
+               padding='same', kernel_regularizer=tf.keras.regularizers.l2(l2=params['l2_loss']))(x)
         y_1 = BatchNormalization()(y_1)
         y_2 = Conv2D(num_features, kernel_size, strides=(1, 1), activation=None, kernel_initializer='he_normal',
-               padding='same', kernel_regularizer=tf.keras.regularizers.l2(l=params['l2_loss']))(y_1)
+               padding='same', kernel_regularizer=tf.keras.regularizers.l2(l2=params['l2_loss']))(y_1)
         y_3 = Conv2D(num_features, kernel_size, strides=stride, padding='same')(x)
         y_3 = BatchNormalization()(y_3)
-        y = tf.math.add(y_2, y_3)
+        # y = _residual_connection(y_2, y_3)
+        y = Add()([y_2, y_3])
+        # y = tf.math.add(y_2, y_3)
         y = ReLU()(y)
         return y
     
@@ -151,7 +158,8 @@ def mod_resnet(params, num_classes, optimizer, loss):
         y = x
         dims = tf.shape(x)
         for i in range(0, layer):
-            y = tf.image.resize(y, size=[dims[1] * i + 1, dims[2] * i + 1])
+            y = Resizing(dims[1] * i + 1, dims[2] * i + 1)(y)
+            # y = tf.image.resize(y, size=[dims[1] * i + 1, dims[2] * i + 1])
             # y = Conv2DTranspose(filters=num_features,
             #                     kernel_size=(2, 2),
             #                     strides=(2, 2),
@@ -161,7 +169,7 @@ def mod_resnet(params, num_classes, optimizer, loss):
         y = BatchNormalization()(y)
         return y
     
-    input_ct = Input((512, 512, params['patch_shape'][-1]),
+    input_ct = Input(shape=params['patch_shape'],
                      name='CT_input')
     e_1 = Conv2D(filters=64,
                  kernel_size=(7, 7),
@@ -197,7 +205,8 @@ def mod_resnet(params, num_classes, optimizer, loss):
                           num_features=512,
                           stride=(1, 1))
     # print(e_5.shape)
-    up_1 = tf.image.resize(e_3, size=[128, 128])
+    up_1 = Resizing(128, 128)(e_3)
+    # up_1 = tf.image.resize(e_3, size=[128, 128])
     up_1 = Conv2D(filters=128, kernel_size=(1, 1), strides=(1, 1), padding='same')(up_1)
     up_1 = BatchNormalization()(up_1)
     # up_1 = _upsample_block(x=e_3,
@@ -205,8 +214,10 @@ def mod_resnet(params, num_classes, optimizer, loss):
     #                        stride=(2, 2),
     #                        layer=1)
     # print(up_1.shape)
-    up_2 = tf.image.resize(e_4, size=[64, 64])
-    up_2 = tf.image.resize(up_2, size=[128, 128])
+    up_2 = Resizing(64, 64)(e_4)
+    up_2 = Resizing(128, 128)(up_2)
+    # up_2 = tf.image.resize(e_4, size=[64, 64])
+    # up_2 = tf.image.resize(up_2, size=[128, 128])
     up_2 = Conv2D(filters=128, kernel_size=(1, 1), strides=(1, 1), padding='same')(up_2)
     up_2 = BatchNormalization()(up_2)
     # up_2 = _upsample_block(x=e_4,
@@ -214,9 +225,13 @@ def mod_resnet(params, num_classes, optimizer, loss):
     #                        stride=(2, 2),
     #                        layer=2)
     # print(up_2.shape)
-    up_3 = tf.image.resize(e_5, size=[32, 32])
-    up_3 = tf.image.resize(up_3, size=[64, 64])
-    up_3 = tf.image.resize(up_3, size=[128, 128])
+    # TODO: if this is correct, I think we could do it in one step, no? this isn't a linear layer...
+    up_3 = Resizing(32, 32)(e_5)
+    up_3 = Resizing(64, 64)(up_3)
+    up_3 = Resizing(128, 128)(up_3)
+    # up_3 = tf.image.resize(e_5, size=[32, 32])
+    # up_3 = tf.image.resize(up_3, size=[64, 64])
+    # up_3 = tf.image.resize(up_3, size=[128, 128])
     up_3 = Conv2D(filters=128, kernel_size=(1, 1), strides=(1, 1), padding='same')(up_3)
     up_3 = BatchNormalization()(up_3)
     # up_3 = _upsample_block(x=e_5,
@@ -224,14 +239,16 @@ def mod_resnet(params, num_classes, optimizer, loss):
                            # stride=(2, 2),
                            # layer=3)
     # print(up_3.shape)
-    d_1 = tf.concat([up_3, up_2, up_1], axis=-1)
+    d_1 = concatenate([up_3, up_2, up_1])
+    # d_1 = tf.concat([up_3, up_2, up_1], axis=-1)
     d_1 = Conv2D(filters=64, kernel_size=(1, 1), strides=(1, 1))(d_1)
     d_1 = BatchNormalization()(d_1)
     d_1 = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding='same')(d_1)
     d_1 = BatchNormalization()(d_1)
     # print('d_1')
     # print(d_1.shape)
-    d_2 = tf.math.add(e_2, d_1)
+    d_2 = Add()([e_2, d_1])
+    # d_2 = tf.math.add(e_2, d_1)
     d_2 = Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), padding='same')(d_2)
     d_2 = BatchNormalization()(d_2)
     # print('d_2')

@@ -1,0 +1,16 @@
+nibabel>=3.2.1
+numpy>=1.19.5
+tensorflow>=2.4.3
+pyjwt>=1.7.1
+tensorboard>=2.6.0
+tensorboard-data-server>=0.6.1
+tensorboard-plugin-wit>=1.8.0
+tensorflow>=2.4.3
+tensorflow-estimator>=2.4.0
+h5py>=2.10.0
+nibabel>=3.2.1
+numpy>=1.19.5
+opencv-python>=4.5.3.56
+scikit-image
+scipy>=1.5.4
+flask>=2.0.2
