@@ -400,7 +400,8 @@ def main(model_weights: Any, params: dict):
     # weights = model.get_weights()
     if model_weights is not None:
         print('Loading previous weight from: central weights')
-        model.set_weights(model_weights)
+        model_weights_conv = [np.array(model_weight) for model_weight in model_weights]
+        model.set_weights(model_weights_conv)
 
     # print(model.summary)
     # Define evaluation metrics
@@ -518,6 +519,8 @@ def main(model_weights: Any, params: dict):
 
             trained_model_path = os.path.join(saved_weights_path,'model_weights' + str(iteration_deep) + '.h5')
     
+    model_weights_list = [weight.tolist() for weight in model.get_weights()]
+
     model_metrics = {'node_iteration': iteration_number,
                      'training_loss': train_loss_list,
                      'training_dice':train_dice_list,
@@ -525,7 +528,9 @@ def main(model_weights: Any, params: dict):
                      'validation_dice':validation_dice_list}
 
 
-    return trained_model_path, model_metrics
+    return {
+            "model weights" : model_weights_list}
+            #"metrics" :  model_metrics}#, training_size
 
 
 def run_deep_algo(averaged_model_path,org_id,iteration):

@@ -17,7 +17,8 @@ def main(client, input: dict, organizations: list):
         organizations=organizations,
     )
     results = client.wait_for_results(task.get("id"))
-    print(results)
+    # print(results)
+    return results
 
 
 

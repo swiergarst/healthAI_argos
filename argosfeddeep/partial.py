@@ -1,14 +1,14 @@
 import pandas as pd
 import numpy as np
 
+import argosfeddeep.models as mod
 from vantage6.algorithm.tools.decorators import data
-from tensorflow.data import Dataset
 import tensorflow as tf
-from .run_online import main
+from .run_online import main, dice_bce
 # from .local import *
 
 
-# @data(2)
+@data(0)
 def test_train_locally(config: dict, model_weights:list[np.ndarray, np.ndarray]):
     # reshape the dataframe into a 4d array (we're hardcoding for now, while it is test data anyway)
     # this part should also change when (mock) data of the right format is available
@@ -21,43 +21,40 @@ def test_train_locally(config: dict, model_weights:list[np.ndarray, np.ndarray])
     # print(dset_train, dset_val)    
     # print(labels_train, labels_val)
 
-@data(2)  # TODO: change this to the right type of database once we know what that needs to be
-def train_locally(df_train: pd.DataFrame, df_val: pd.DataFrame, config: dict, model_weights):
+@data(0)  # TODO: change this to the right type of database once we know what that needs to be
+def train_locally(config: dict, model_weights):
 
-    dset_train = prep_data(df_train, config['patch_shape'])
-    dset_val = prep_data(df_val, config['patch_shape'])
+    # dset_train = prep_data(df_train, config['patch_shape'])
+    # dset_val = prep_data(df_val, config['patch_shape'])
     # TODO: change run_online to take a dataset as input
-    main(dset_train, dset_val, model_weights, config)
+    return main(model_weights, config)
+ 
+
+# test function to debug weight averaging
+@data(0)
+def pass_weights_back(config: dict, model_weights:list):
+    # Define model
+    # Define optimizer with learning rate
+    loss_function = dice_bce
+    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(config['learning_rate'],
+                                                                  decay_steps=config['decay_steps'],
+                                                                  decay_rate=config['decay_rate'],
+                                                                  staircase=True)
+    optimizer_function = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
+    model = mod.mod_resnet(config,
+                        config['num_classes'],
+                        optimizer=optimizer_function,
+                        loss=loss_function)
     
-def test_forward_pass(df: pd.DataFrame, config: dict, model:tf.keras.Model):
-    print(f'data shape before prep data: {df.shape}')
-    
-    dset = prep_data(df, config['patch_shape'])
+    model_weights_conv = [np.array(model_weight) for model_weight in model_weights]
+    print("setting model weights")
+    print("model shape: ")
+    print(f'{[layer.shape for layer in model_weights_conv]}')
+    model.set_weights(model_weights_conv)
 
-    batch = dset.shuffle(100).take(config['batch_size'])
-    ct_batch = np.array([sample[0] for sample in batch])
-    gt_batch = np.array([sample[1] for sample in batch])
-    predictions = model(inputs=[ct_batch], training=True)
-    return predictions
-
-
-
-def prep_data(df: pd.DataFrame, data_shape: list):
-    labels= df['labels'].values
-    data_raw = df.drop(columns = ['labels']).values
-    
-    data_shape.insert(0, -1)
-
-
-    data_raw = data_raw.reshape(data_shape)
-    print(f'data shape: {data_raw.shape}')
-    # data_raw_val = df_val.drop(columns = ['labels']).values
-    # labels_val = df_val_
-    features = Dataset.from_tensor_slices(data_raw)
-    labels = Dataset.from_tensor_slices(labels)
-    
-    dset = Dataset.zip((features, labels))
-    # dset = Dataset.from_tensors((data_raw, labels))
-
-    # dset_val = Dataset.from_tensors(data_raw_val.reshape((config['patch_shape'], -1)))
-    return dset
+    print("returning model weights")
+    returned_weights = [weight.tolist() for weight in model.get_weights()]
+    # return the same weights just to keep the workflow the same
+    return {
+        "model weights" : returned_weights
+    }

@@ -68,16 +68,19 @@ def save_averaged_weights(model, average_weights, save_path, iteration):
     return model_name
 
 
-def compute_average_weight(model, weights_path):
-    weights_list = []
+# def compute_average_weight(model, weights_path):
+def compute_average_weight(weights_list):
+
+    # weights_list = []
     average_weights = list()
     
-    weights_files = os.listdir(weights_path)
+    # weights_files = os.listdir(weights_path)
     
-    for weights_file in weights_files:
-        weights_list.append(extract_weight(model, os.path.join(weights_path, weights_file)))
+    # for weights_file in weights_files:
+    #     weights_list.append(extract_weight(model, os.path.join(weights_path, weights_file)))
 
     for weights_list_tuple in zip(*weights_list):
+        # print(f'local layer shape: {weights_list_tuple.shape}')
         average_weights.append(np.mean(weights_list_tuple, axis=0))
     
     return average_weights
