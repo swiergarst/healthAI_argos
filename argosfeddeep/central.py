@@ -6,7 +6,7 @@ from vantage6.algorithm.tools.decorators import algorithm_client
 from vantage6.algorithm.client import AlgorithmClient
 from argosfeddeep.models import mod_resnet
 from argosfeddeep.run_online import dice_bce
-from argosfeddeep.average import compute_average_weight
+from argosfeddeep.utils import compute_average_weight
 import tensorflow as tf
 import json
 

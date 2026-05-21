@@ -9,42 +9,6 @@ from skimage.morphology import binary_closing
 from skimage.measure import label
 
 
-class Params:
-    def __init__(self, json_path):
-        self.update(json_path)
-
-    def save(self, json_path):
-        """"
-        Save dict to json file
-
-        Parameters
-        ----------
-        json_path : string
-            Path to save location
-        """
-        with open(json_path, 'w') as f:
-            json.dump(self.__dict__, f, indent=4)
-
-    def update(self, json_path):
-        """
-        Load parameters from json file
-
-        Parameters
-        ----------
-        json_path : string
-            Path to json file
-        """
-        with open(json_path) as f:
-            params = json.load(f)
-            self.__dict__.update(params)
-
-    @property
-    def dict(self):
-        """"
-        Give dict-like access to Params instance by: 'params.dict['learning_rate']'
-        """
-        return self.__dict__
-
 
 def load_nifti_set(patient_path):
     ct = nib.load(os.path.join(patient_path, 'image.nii.gz')).get_fdata()
@@ -68,135 +32,6 @@ def read_slices(slice_json_fname):
 
     return slices
 
-
-# def load_gtv_set(patient_path):
-#     folder_contents = os.listdir(patient_path)
-#     for item in folder_contents:
-#         s = item.lower()
-#         if 'image' in s:
-#             ct = nrrd.read(os.path.join(patient_path, item))[0]
-    
-#     gt = np.zeros(shape=ct.shape)
-#     for item in folder_contents:
-#         s = item.lower()
-#         if 'gtv' in s:
-#             gt += nrrd.read(os.path.join(patient_path, item))[0]
-#     gt[gt != 0] = 1
-#     if np.max(gt) == 0:
-#         print(patient_path + ' Patient does not have a GTV in the GT.')
-        
-#     gt_lung = np.zeros(shape=ct.shape)
-#     for item in folder_contents:
-#         s = item.lower()
-#         if 'lung-left' in s:
-#             gt_lung += nrrd.read(os.path.join(patient_path, item))[0]
-#         if 'lung-right' in s:
-#             gt_lung += nrrd.read(os.path.join(patient_path, item))[0]
-#         if 'lung-total' in s:
-#             gt_lung += nrrd.read(os.path.join(patient_path, item))[0]
-#         if 'lungs-total' in s:
-#             gt_lung += nrrd.read(os.path.join(patient_path, item))[0]
-
-#     gt_lung[gt_lung != 0] = 1
-#     return ct, gt, gt_lung
-
-
-# def load_gtv1_set(patient_path):
-#     folder_contents = os.listdir(patient_path)
-#     for item in folder_contents:
-#         s = item.lower()
-#         if 'image' in s:
-#             ct = nrrd.read(os.path.join(patient_path, item))[0]
-    
-#     gt = np.zeros(shape=ct.shape)
-#     for item in folder_contents:
-#         s = item.lower()
-#         if 'gtv-1' in s:
-#             gt += nrrd.read(os.path.join(patient_path, item))[0]
-#     gt[gt != 0] = 1
-#     if np.max(gt) == 0:
-#         print(patient_path + ' Patient does not have a GTV in the GT.')
-        
-#     gt_lung = np.zeros(shape=ct.shape)
-#     for item in folder_contents:
-#         s = item.lower()
-#         if 'lung-left' in s:
-#             gt_lung += nrrd.read(os.path.join(patient_path, item))[0]
-#         if 'lung-right' in s:
-#             gt_lung += nrrd.read(os.path.join(patient_path, item))[0]
-#         if 'lung-total' in s:
-#             gt_lung += nrrd.read(os.path.join(patient_path, item))[0]
-#         if 'lungs-total' in s:
-#             gt_lung += nrrd.read(os.path.join(patient_path, item))[0]
-#     gt_lung[gt_lung != 0] = 1
-#     return ct, gt, gt_lung
-
-# def load_nrrd_set(patient_path):
-#     folder_contents = os.listdir(patient_path)
-#     if '.DS_Store' in folder_contents:
-#         folder_contents.remove('.DS_Store')
-#     for item in folder_contents:
-#         s = item.lower()
-#         if 'image' in s:
-#             ct = nrrd.read(os.path.join(patient_path, item))[0]
-    
-#     gt = np.zeros(shape=ct.shape)
-#     for item in folder_contents:
-#         s = item.lower()
-#         if 'gtv' in s:
-#             gt += nrrd.read(os.path.join(patient_path, item))[0]
-#     return ct, gt
-
-
-# def load_nrrd_lung_set(patient_path):
-#     folder_contents = os.listdir(patient_path)
-#     if '.DS_Store' in folder_contents:
-#         folder_contents.remove('.DS_Store')
-#     for item in folder_contents:
-#         s = item.lower()
-#         if 'image' in s:
-#             ct = nrrd.read(os.path.join(patient_path, item))[0]
-    
-#     gt = np.zeros(shape=ct.shape)
-#     for item in folder_contents:
-#         s = item.lower()
-#         if 'lung-left' in s:
-#             gt += nrrd.read(os.path.join(patient_path, item))[0]
-#         if 'lung-right' in s:
-#             gt += nrrd.read(os.path.join(patient_path, item))[0]
-#     return ct, gt
-
-
-# def extract_bounding_boxes(gt_src):
-#     """
-#     Extract corner coordinates of bounding boxes from tumour locations. Finds contours of tumours and draws rectangles
-#     around these contours.
-
-#     Parameters
-#     ----------
-#     gt_src : ndarray
-#         Binary image containing tumour annotations
-
-#     Returns
-#     -------
-#     indices : list
-#         List containing corner coordinates of bounding boxes
-#     """
-#     im = gt_src * 255
-#     indices = []
-#     for layer in range(0, im.shape[2]):
-#         img = im[:, :, layer]
-#         img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
-#         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-#         contours, hierarchy = cv2.findContours(gray, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[-2:]
-#         idx = 0
-#         for cnt in contours:
-#             idx += 1
-#             x, y, w, h = cv2.boundingRect(cnt)
-#             # cv2.rectangle(img, (x, y), (x + w, y + h), (36,255,12), 2)
-#             # roi=im[y:y+h,x:x+w]
-#             indices.append([x, x+w, y, y+h, layer])
-#     return indices
 
 
 def load_samples(sample_txt_file, seed=42):
@@ -468,3 +303,20 @@ def normalize_min_max(img):
     a = (img - np.min(img))
     b = (np.max(img) - np.min(img))
     return np.divide(a, b, np.zeros_like(a), where=b != 0)
+
+
+def compute_average_weight(weights_list):
+
+    # weights_list = []
+    average_weights = list()
+    
+    # weights_files = os.listdir(weights_path)
+    
+    # for weights_file in weights_files:
+    #     weights_list.append(extract_weight(model, os.path.join(weights_path, weights_file)))
+
+    for weights_list_tuple in zip(*weights_list):
+        # print(f'local layer shape: {weights_list_tuple.shape}')
+        average_weights.append(np.mean(weights_list_tuple, axis=0))
+    
+    return average_weights

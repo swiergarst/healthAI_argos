@@ -368,17 +368,11 @@ def main(model_weights: Any, params: dict):
         validation_loss(total_loss)
         return predictions
 
-    
-    # param_path = os.path.join(data_path , 'assets','params.json')
-    # params = utl.Params(param_path)
 
     sort_slices(os.path.join(data_path,'Train/'),'slices_training_modified.json')
-
     sort_slices(os.path.join(data_path,'Validation/'),'slices_validation_modified.json')
     # Define loss function
     loss_list = []
-    # loss_function = losses.CategoricalCrossentropy()
-    # loss_function = dice_loss2
     loss_function = dice_bce
 
     # Define optimizer with learning rate
@@ -413,18 +407,26 @@ def main(model_weights: Any, params: dict):
     # Create variables for various paths used for storing training information
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
-    if not os.path.exists(os.path.join(os.getcwd(),'logs','gradient_tape','train')):
-        os.makedirs(os.path.join(os.getcwd(),'logs',current_time,'gradient_tape','train'))
-    train_log_dir = os.path.join(os.getcwd(),'logs',current_time,'gradient_tape','train')
-    if not os.path.exists(os.path.join(os.getcwd(),'logs','gradient_tape','val')):
-        os.makedirs(os.path.join(os.getcwd(),'logs',current_time,'gradient_tape','val'))
-    val_log_dir = os.path.join(os.getcwd(),'logs',current_time,'gradient_tape','val')
-    if not os.path.exists(os.path.join(os.getcwd(),'logs','gradient_tape','saved_models')):
-        os.makedirs(os.path.join(os.getcwd(),'logs',current_time,'gradient_tape','saved_models'))
-    saved_model_path = os.path.join(os.getcwd(),'logs',current_time,'gradient_tape','saved_models')
-    if not os.path.exists(os.path.join(os.getcwd(),'logs','gradient_tape','saved_weights')):
-        os.makedirs(os.path.join(os.getcwd(),'logs',current_time,'gradient_tape','saved_weights'))
-    saved_weights_path = os.path.join(os.getcwd(),'logs',current_time,'gradient_tape','saved_weights')
+    train_log_dir = f'{os.getcwd()}/logs/{current_time}/gradient_tape/train'
+    val_log_dir = f'{os.getcwd()}/logs/{current_time}/gradient_tape/val'
+    saved_model_path = f'{os.getcwd()}/logs/{current_time}/gradient_tape/saved_models'
+    saved_weights_path = f'{os.getcwd()}/logs/{current_time}/gradient_tape/saved_weights'
+
+    os.makedirs(train_log_dir)
+    os.makedirs(val_log_dir)
+    os.makedirs(saved_model_path)
+    os.makedirs(saved_weights_path)
+    # if not os.path.exists(os.path.join(os.getcwd(),'logs','gradient_tape','train')):
+    #     os.makedirs(train_log_dir)
+    # if not os.path.exists(os.path.join(os.getcwd(),'logs','gradient_tape','val')):
+    #     os.makedirs(os.path.join(os.getcwd(),'logs',current_time,'gradient_tape','val'))
+    # val_log_dir = os.path.join(os.getcwd(),'logs',current_time,'gradient_tape','val')
+    # if not os.path.exists(os.path.join(os.getcwd(),'logs','gradient_tape','saved_models')):
+    #     os.makedirs(os.path.join(os.getcwd(),'logs',current_time,'gradient_tape','saved_models'))
+    # saved_model_path = os.path.join(os.getcwd(),'logs',current_time,'gradient_tape','saved_models')
+    # if not os.path.exists(os.path.join(os.getcwd(),'logs','gradient_tape','saved_weights')):
+    #     os.makedirs(os.path.join(os.getcwd(),'logs',current_time,'gradient_tape','saved_weights'))
+    # saved_weights_path = os.path.join(os.getcwd(),'logs',current_time,'gradient_tape','saved_weights')
 
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
     val_summary_writer = tf.summary.create_file_writer(val_log_dir)
@@ -441,17 +443,11 @@ def main(model_weights: Any, params: dict):
     validation_loss_list = list()
     validation_dice_list = list()
 
+    template = 'Iteration {}, Loss: {:.5}, Dice: {:.5}'
 
     # Start training loop
     for iteration_deep in range(0, params['num_steps'] + 1):
-        # print(iteration_deep)
         _start_graph_tensorflow(train_log_dir)
-        # dset_train = dset_train.shuffle()
-        # batch = dset_train.shuffle(100).take(params['batch_size'])
-        # ct_batch = np.array([sample[0] for sample in batch])
-        # gt_batch = np.array([sample[1] for sample in batch])
-        # print(f'ct_batch: {ct_batch}')
-        # print(f'gt_batch: {gt_batch}') 
         ct_batch, gt_batch = get_batch_full(train_slices, params)
 
         train_pred = train_on_batch(ct_batch, gt_batch)
@@ -468,8 +464,6 @@ def main(model_weights: Any, params: dict):
                 tf.summary.scalar('loss', train_loss.result(), step=iteration_deep)
                 tf.summary.scalar('accuracy', train_dice, step=iteration_deep)
 
-
-            template = 'Iteration {}, Loss: {:.5}, Dice: {:.5}'
             print(template.format(iteration_deep + 1,
                                   train_loss.result(),
                                   train_dice))
@@ -487,7 +481,6 @@ def main(model_weights: Any, params: dict):
                 tf.summary.scalar('loss', validation_loss.result(), step=iteration_deep)
                 tf.summary.scalar('accuracy', validation_dice, step=iteration_deep)
                 loss_list.append(validation_loss.result())
-            template = 'Iteration {}, Validation Loss: {:.5}, Validation Dice: {:.5}'
             print(template.format(iteration_deep + 1,
                                   validation_loss.result(),
                                   validation_dice))
@@ -527,33 +520,9 @@ def main(model_weights: Any, params: dict):
                      'validation_loss':validation_loss_list,
                      'validation_dice':validation_dice_list}
 
-
+    # TODO: make model metrics serializable so they work
     return {
-            "model weights" : model_weights_list}
+            "model weights" : model_weights_list}#,
             #"metrics" :  model_metrics}#, training_size
-
-
-def run_deep_algo(averaged_model_path,org_id,iteration):
-
-    import shutil
-
-    if not os.path.exists(os.path.join(os.getcwd(),'trained_model')):
-        os.mkdir(os.path.join(os.getcwd(),'trained_model'))
-    trained_model_directory = os.path.join(os.getcwd(),'trained_model')
-
-    if tf.test.gpu_device_name():
-        print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
-    else:
-        print("Running on CPU. Please install GPU version of TF")
-    model_path, model_metrics = main(averaged_model_path)
-    new_model_path = os.path.join(trained_model_directory,str(org_id)+'_'+str(iteration)+'_'+'node.h5')
-
-    shutil.move(model_path,new_model_path)
-
-    return new_model_path, model_metrics
-
-#path, metrics = run_deep_algo(os.path.join(os.getcwd(),('initial_weight.h5')),2,1)
-
-#print(path, metrics)
 
 

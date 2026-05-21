@@ -22,11 +22,7 @@ def test_train_locally(config: dict, model_weights:list[np.ndarray, np.ndarray])
     # print(labels_train, labels_val)
 
 @data(0)  # TODO: change this to the right type of database once we know what that needs to be
-def train_locally(config: dict, model_weights):
-
-    # dset_train = prep_data(df_train, config['patch_shape'])
-    # dset_val = prep_data(df_val, config['patch_shape'])
-    # TODO: change run_online to take a dataset as input
+def train_locally(config: dict, model_weights: list):
     return main(model_weights, config)
  
 

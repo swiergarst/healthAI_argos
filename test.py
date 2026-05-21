@@ -26,28 +26,7 @@ with open(f'{current_path}/config.json', "r") as fp:
 ## Mock client
 client = MockAlgorithmClient(
     datasets=[[],[]],
-        # Data for first organization
-        # [{
-        #     "database": current_path / "mock_data_train.csv",
-        #     "db_type": "csv",
-        #     "input_data": {}
-        # },
-        # {
-        #     "database": current_path / "mock_data_val.csv",
-        #     "db_type" : "csv",
-        #     "input_data" : {}
-        # }],
-        # Data for second organization
-    #     [{
-    #         "database": current_path / "mock_data_train.csv",
-    #         "db_type": "csv",
-    #         "input_data": {}
-    #     },
-    #     {
-    #         "database": current_path / "mock_data_val.csv",
-    #         "db_type" : "csv",
-    #         "input_data" : {}}]
-    # ],
+
     module="argosfeddeep"
 )
 
